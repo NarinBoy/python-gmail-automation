@@ -36,15 +36,16 @@ def load_config():
         print(f"Error loading config: {e}")
     return {"to_email": "", "cc_emails": []}
 
-def load_template(travel_dates):
+def load_template(travel_dates_thai, travel_dates_numeric):
     try:
         if os.path.exists(TEMPLATE_FILE):
             with open(TEMPLATE_FILE, 'r', encoding='utf-8') as f:
                 content = f.read()
-                return content.replace("{travel_dates}", travel_dates)
+                content = content.replace("{travel_dates_thai}", travel_dates_thai)
+                return content.replace("{travel_dates_numeric}", travel_dates_numeric)
     except Exception as e:
         print(f"Error loading template: {e}")
-    return f"ขออนุมัติเดินทางวันที่ {travel_dates}"
+    return f"ขออนุมัติเดินทางวันที่ {travel_dates_thai}"
 
 def get_gmail_service():
     creds = None
@@ -83,13 +84,24 @@ def send_email():
 
         service = get_gmail_service()
         
+        THAI_MONTHS = [
+            "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
+            "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
+        ]
         d1 = cal1.get_date()
         d2 = cal2.get_date()
-        date1_str = f"{d1.strftime('%d/%m')}/{d1.year + 543}"
-        date2_str = f"{d2.strftime('%d/%m')}/{d2.year + 543}"
-        travel_dates_text = f"{date1_str} และ {date2_str}"
+        
+        # Format 1: Thai Month names for body text
+        date1_thai = f"{d1.day} {THAI_MONTHS[d1.month - 1]} {d1.year + 543}"
+        date2_thai = f"{d2.day} {THAI_MONTHS[d2.month - 1]} {d2.year + 543}"
+        travel_dates_thai = f"{date1_thai} และ {date2_thai}"
+        
+        # Format 2: Numeric DD/MM/YYYY for table
+        date1_numeric = f"{d1.strftime('%d/%m')}/{d1.year + 543}"
+        date2_numeric = f"{d2.strftime('%d/%m')}/{d2.year + 543}"
+        travel_dates_numeric = f"{date1_numeric} และ {date2_numeric}"
 
-        html_body = load_template(travel_dates_text)
+        html_body = load_template(travel_dates_thai, travel_dates_numeric)
 
         subject = "ขออนุมัติเดินทางไปปฏิบัติงานสำหรับนักศึกษาฝึกงาน"
         message = MIMEMultipart()
@@ -111,7 +123,7 @@ def send_email():
 
         raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
         service.users().messages().send(userId="me", body={'raw': raw_message}).execute()
-        messagebox.showinfo("สำเร็จ", f"ส่งอีเมลเรียบร้อยแล้ว!\nสำหรับวันที่: {travel_dates_text}")
+        messagebox.showinfo("สำเร็จ", f"ส่งอีเมลเรียบร้อยแล้ว!\nสำหรับวันที่: {travel_dates_thai}")
         
     except Exception as e:
         messagebox.showerror("ข้อผิดพลาด", f"ไม่สามารถส่งเมลได้: {str(e)}")
