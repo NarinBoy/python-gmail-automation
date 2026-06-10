@@ -23,7 +23,8 @@ SCOPES = ['https://www.googleapis.com/auth/gmail.send']
 # Config Files
 CLIENT_SECRET_FILE = 'client_secret.json'
 CONFIG_FILE = 'config.json'
-TEMPLATE_FILE = 'email_template.html'
+TEMPLATE_FILE_1DAY = 'email_template_1day.html'  # เทมเพลตสำหรับเดินทาง 1 วัน
+TEMPLATE_FILE_2DAY = 'email_template_2day.html'  # เทมเพลตสำหรับเดินทาง 2 วัน
 
 selected_file_path = ""
 
@@ -36,10 +37,10 @@ def load_config():
         print(f"Error loading config: {e}")
     return {"to_email": "", "cc_emails": []}
 
-def load_template(travel_dates_thai, travel_dates_numeric):
+def load_template(template_file, travel_dates_thai, travel_dates_numeric):
     try:
-        if os.path.exists(TEMPLATE_FILE):
-            with open(TEMPLATE_FILE, 'r', encoding='utf-8') as f:
+        if os.path.exists(template_file):
+            with open(template_file, 'r', encoding='utf-8') as f:
                 content = f.read()
                 content = content.replace("{travel_dates_thai}", travel_dates_thai)
                 return content.replace("{travel_dates_numeric}", travel_dates_numeric)
@@ -75,6 +76,17 @@ def reset_file():
     selected_file_path = ""
     file_label.config(text="ยังไม่ได้เลือกไฟล์", fg="#718096")
 
+def update_day_mode():
+    # แสดง/ซ่อนช่อง "ถึง" (ปฏิทินวันที่สอง) ตามจำนวนวันที่เลือก
+    if day_count_var.get() == 1:
+        lbl_from.config(text="วันที่:")
+        lbl_to.grid_remove()
+        cal2.grid_remove()
+    else:
+        lbl_from.config(text="เริ่ม:")
+        lbl_to.grid()
+        cal2.grid()
+
 def send_email():
     try:
         config = load_config()
@@ -88,20 +100,27 @@ def send_email():
             "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
             "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"
         ]
+        day_count = day_count_var.get()
         d1 = cal1.get_date()
-        d2 = cal2.get_date()
-        
-        # Format 1: Thai Month names for body text
-        date1_thai = f"{d1.day} {THAI_MONTHS[d1.month - 1]} {d1.year + 543}"
-        date2_thai = f"{d2.day} {THAI_MONTHS[d2.month - 1]} {d2.year + 543}"
-        travel_dates_thai = f"{date1_thai} และ {date2_thai}"
-        
-        # Format 2: Numeric DD/MM/YYYY for table
-        date1_numeric = f"{d1.strftime('%d/%m')}/{d1.year + 543}"
-        date2_numeric = f"{d2.strftime('%d/%m')}/{d2.year + 543}"
-        travel_dates_numeric = f"{date1_numeric} และ {date2_numeric}"
 
-        html_body = load_template(travel_dates_thai, travel_dates_numeric)
+        # Format 1: Thai Month names for body text
+        # Format 2: Numeric DD/MM/YYYY for table
+        date1_thai = f"{d1.day} {THAI_MONTHS[d1.month - 1]} {d1.year + 543}"
+        date1_numeric = f"{d1.strftime('%d/%m')}/{d1.year + 543}"
+
+        if day_count == 2:
+            d2 = cal2.get_date()
+            date2_thai = f"{d2.day} {THAI_MONTHS[d2.month - 1]} {d2.year + 543}"
+            date2_numeric = f"{d2.strftime('%d/%m')}/{d2.year + 543}"
+            travel_dates_thai = f"{date1_thai} และ {date2_thai}"
+            travel_dates_numeric = f"{date1_numeric} และ {date2_numeric}"
+            template_file = TEMPLATE_FILE_2DAY
+        else:
+            travel_dates_thai = date1_thai
+            travel_dates_numeric = date1_numeric
+            template_file = TEMPLATE_FILE_1DAY
+
+        html_body = load_template(template_file, travel_dates_thai, travel_dates_numeric)
 
         subject = "ขออนุมัติเดินทางไปปฏิบัติงานสำหรับนักศึกษาฝึกงาน"
         message = MIMEMultipart()
@@ -154,14 +173,31 @@ tk.Label(main_frame, text="ส่งเมลขออนุมัติเด�
 section1 = tk.Frame(main_frame, bg=BG_WHITE, highlightbackground=BORDER_GRAY, highlightthickness=1, padx=20, pady=20)
 section1.pack(fill="x", pady=(0, 15))
 tk.Label(section1, text="วันที่เดินทาง", font=sub_font, fg=TEXT_MAIN, bg=BG_WHITE).pack(anchor="w", pady=(0, 15))
+
+# ตัวเลือกจำนวนวันเดินทาง (1 หรือ 2 วัน)
+day_count_var = tk.IntVar(value=1)
+toggle_frame = tk.Frame(section1, bg=BG_WHITE)
+toggle_frame.pack(fill="x", pady=(0, 15))
+tk.Radiobutton(toggle_frame, text="1 วัน", variable=day_count_var, value=1, command=update_day_mode,
+               font=normal_font, bg=BG_WHITE, fg=TEXT_MAIN, activebackground=BG_WHITE,
+               selectcolor=BG_WHITE).pack(side="left", padx=(0, 20))
+tk.Radiobutton(toggle_frame, text="2 วัน", variable=day_count_var, value=2, command=update_day_mode,
+               font=normal_font, bg=BG_WHITE, fg=TEXT_MAIN, activebackground=BG_WHITE,
+               selectcolor=BG_WHITE).pack(side="left")
+
 date_grid = tk.Frame(section1, bg=BG_WHITE)
 date_grid.pack(fill="x")
-tk.Label(date_grid, text="เริ่ม:", font=normal_font, bg=BG_WHITE, fg=TEXT_MAIN).grid(row=0, column=0, sticky="w", pady=5)
+lbl_from = tk.Label(date_grid, text="วันที่:", font=normal_font, bg=BG_WHITE, fg=TEXT_MAIN)
+lbl_from.grid(row=0, column=0, sticky="w", pady=5)
 cal1 = DateEntry(date_grid, width=15, background='#2D3748', foreground='white', borderwidth=0, date_pattern='dd/mm/yyyy')
 cal1.grid(row=0, column=1, padx=(15, 0), pady=5)
-tk.Label(date_grid, text="ถึง:", font=normal_font, bg=BG_WHITE, fg=TEXT_MAIN).grid(row=1, column=0, sticky="w", pady=5)
+lbl_to = tk.Label(date_grid, text="ถึง:", font=normal_font, bg=BG_WHITE, fg=TEXT_MAIN)
+lbl_to.grid(row=1, column=0, sticky="w", pady=5)
 cal2 = DateEntry(date_grid, width=15, background='#2D3748', foreground='white', borderwidth=0, date_pattern='dd/mm/yyyy')
 cal2.grid(row=1, column=1, padx=(15, 0), pady=5)
+
+# ตั้งค่าเริ่มต้นให้ตรงกับจำนวนวันที่เลือก (ค่าเริ่มต้น = 1 วัน → ซ่อนช่อง "ถึง")
+update_day_mode()
 
 # Section 2: Attachment
 section2 = tk.Frame(main_frame, bg=BG_WHITE, highlightbackground=BORDER_GRAY, highlightthickness=1, padx=20, pady=20)
