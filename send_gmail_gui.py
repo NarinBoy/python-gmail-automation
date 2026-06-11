@@ -281,7 +281,7 @@ def make_card(title):
 # Section 1: Dates
 section_dates = make_card("📅  วันที่เดินทาง")
 
-day_count_var = tk.IntVar(value=1)
+day_count_var = tk.IntVar(value=2)
 
 seg_frame = tk.Frame(section_dates, bg=BORDER_GRAY, highlightbackground=BORDER_GRAY, highlightthickness=1)
 seg_frame.pack(fill="x", pady=(0, 12))
